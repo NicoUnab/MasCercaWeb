@@ -1,0 +1,23 @@
+﻿@model Reporte
+@{
+    var opciones = ViewBag.EstadosRep as List<SelectListItem>;
+}
+<div>
+    <h5>Detalles del Reporte @Model.id</h5>
+    <input type="hidden" id="hiddenReporteId" value="@Model.id" />
+    <p><strong>Descripción:</strong> @Model.descripcion</p>
+    <p><strong>Dirección:</strong> @Model.ubicacion</p>
+    <p><strong>Fecha de Creación:</strong> @Model.fechaCreacion</p>
+    <p><strong>Comentario de Vecino:</strong> @Model.descripcion</p>
+    <!-- Campo para seleccionar el estado -->
+    <div class="form-group">
+        <label for="Opciones">Selecciona una opción</label>
+        @Html.DropDownListFor(m => m.Estado.id, opciones, "--Seleccione--", new { @id = "estadoInput", @class = "form-control" })
+    </div>
+
+    <!-- Campo para editar el comentario -->
+    <div class="form-group">
+        <label for="comentarioInput">Comentario:</label>
+        <textarea id="comentarioInput" class="form-control"></textarea>
+    </div>
+</div>

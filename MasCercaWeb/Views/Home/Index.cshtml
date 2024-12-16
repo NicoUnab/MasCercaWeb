@@ -1,0 +1,165 @@
+﻿@{
+    ViewBag.Title = "Dashboard";
+    var userData = ViewBag.UserData;
+}
+<div class="dashboard-container">
+    <h1>Bienvenido, @userData.Nombre</h1>
+    <div class="row">
+        <!-- Panel Lateral -->
+        <div class="col-md-2 bg-light p-3">
+            <h5>Menú</h5>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link active" asp-controller="Home" asp-action="Index">Inicio</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" asp-controller="Reportes" asp-action="Index">Ver Todos los Reportes</a>
+                </li>
+            </ul>
+        </div>
+        <!-- Contenido Principal -->
+        <div class="col-md-10">
+            <div class="row text-center">
+                <!-- Iterar sobre los estados dinámicamente -->
+                @foreach (var estado in ViewBag.Estados)
+                {
+                    // Determinar el color de fondo según el nombre del estado
+                    var bgColor = estado.Key == "Pendiente" ? "bg-danger" :
+                    estado.Key == "En Proceso" ? "bg-warning" : "bg-success";
+
+                    // Determinar el texto de color según el nombre del estado
+                    var textColor = "text-white";
+
+                    <div class="col-md-4" style="cursor: pointer;" onclick="mostrarReportes('@estado.Key')">
+                        <div class="card">
+                            <div class="card-body @textColor @bgColor">
+                                <h5 class="card-title">@estado.Key</h5>
+                                <p class="card-text display-4">@estado.Value</p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        <!-- Lista de Reportes -->
+        <div id="listaReportes" style="display:none;">
+            <h3>Reportes en el estado seleccionado:</h3>
+            <div id="reportesContainer" class="form-control"></div> <!-- Cambié el textarea por un div -->
+        </div>
+
+        <!-- Modal para mostrar detalles del reporte -->
+        <div class="modal fade" id="reporteModal" tabindex="-1" role="dialog" aria-labelledby="reporteModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="reporteModalLabel">Detalles del Reporte</h5>
+                        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" id="reporteDetails">
+                        <!-- Aquí se cargarán los detalles del reporte -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" onclick="guardarCambios()">Guardar Cambios</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- Bootstrap JS (depende de jQuery) -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Función para mostrar los reportes asociados a un estado
+    function mostrarReportes(estado) {
+        let reportes = @Html.Raw(Json.Serialize(ViewBag.Reportes)); // Obtener todos los reportes de ViewBag
+
+        // Filtrar reportes por el estado seleccionado, solo aquellos que tienen el campo Estado.nombre
+        let reportesPorEstado = reportes.filter(r => r.estado && r.estado.nombre === estado);
+
+        let reportesContainer = document.getElementById('reportesContainer'); // Obtener el contenedor
+
+        // Limpiar el contenedor de reportes
+        reportesContainer.innerHTML = '';
+
+        if (reportesPorEstado.length > 0) {
+            // Mostrar los IDs de los reportes como enlaces clickeables
+            reportesPorEstado.forEach(reporte => {
+                let link = document.createElement('a');
+                link.href = "#";
+                link.textContent = `ID: ${reporte.id}`;
+                link.onclick = function () {
+                    abrirDetalleReporte(reporte.id); // Llamar a la función de abrir el reporte al hacer clic
+                };
+                let div = document.createElement('div');
+                div.appendChild(link);
+                reportesContainer.appendChild(div);
+            });
+
+            // Mostrar el recuadro con los reportes
+            document.getElementById('listaReportes').style.display = 'block';
+        } else {
+            // Si no hay reportes, ocultar el recuadro
+            document.getElementById('listaReportes').style.display = 'none';
+        }
+    }
+
+    function abrirDetalleReporte(reporteId) {
+        // Llamar al controlador de la aplicación web para obtener los detalles del reporte desde la API externa
+        $.ajax({
+            url: '@Url.Action("ObtenerReporte", "Home")',  // Llamada al controlador de la app web
+            data: { id: reporteId },  // Pasamos el id del reporte
+            success: function (data) {
+                // Cargar los detalles del reporte en el modal
+                $('#reporteDetails').html(data);  // La respuesta de la API debe ser el HTML para mostrar en el modal
+                //$('#reporteModal').attr('data-reporte-id', reporteId);
+                $('#reporteModal').modal('show'); // Mostrar el modal
+            },
+            error: function () {
+                alert("Error al obtener los detalles del reporte.");
+            }
+        });
+    }
+
+    function guardarCambios() {
+        const reporteId = $('#hiddenReporteId').val(); // Obtener el ID del reporte desde un atributo de datos
+        const estado = $('#estadoInput').val(); // Obtener el estado seleccionado
+        const estadoNombre = $('#estadoInput option:selected').text();
+        const comentario = $('#comentarioInput').val(); // Obtener el comentario del textarea
+
+        if (!reporteId || !estado || !estadoNombre || !comentario.trim()) {
+            alert("Por favor, complete todos los campos.");
+            return;
+        }
+
+        // Enviar los datos al servidor usando AJAX
+        $.ajax({
+            url: '@Url.Action("ActualizarReporte", "Reportes")', // Endpoint en el controlador
+            type: 'POST',
+            data: {
+                reporteId: reporteId,
+                estado: estado,
+                estadoNombre: estadoNombre,
+                comentario: comentario
+            },
+            success: function (response) {
+                if (response.success) {
+                    alert(response.message);
+                    $('#reporteModal').modal('hide'); // Cerrar el modal después de guardar
+                    location.reload(); // Recargar la página para actualizar el estado del reporte
+                } else {
+                    alert(response.message);
+                }
+            },
+            error: function (xhr) {
+                alert("Error al intentar guardar los cambios.");
+                console.error(xhr.responseText);
+            }
+        });
+    }
+</script>
